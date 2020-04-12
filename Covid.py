@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup as bs
 import pandas as pd
 import requests
+from matplotlib import pyplot as plt
 
 
 def unistats(df):
@@ -30,9 +31,9 @@ def unistats(df):
             skew = round(df[col].skew(), 2)
             kurt = round(df[col].kurt(), 2)
             
-            plt.hist(df[col])
-            plt.title(col)
-            plt.ylabel('count')
+            # plt.hist(df[col])
+            # plt.title(col)
+            # plt.ylabel('count')
             
             textstr= 'count:         ' + str(count) + '\n'
             textstr = 'unique values:' + str(unique) + '\n'
@@ -49,13 +50,13 @@ def unistats(df):
             textstr = 'kurtosis:     ' + str(kurt) + '\n'
             
             
-            plt.text(1, 0.1, textstr, fontsize=12, transform=plt.gcf().transFigure)
-            plt.show()
+            # plt.text(1, 0.1, textstr, fontsize=12, transform=plt.gcf().transFigure)
+            # plt.show()
             
-            plt.boxplot(df[col])
-            plt.title(col)
-            plt.ylabel('count')
-            plt.show()
+            # plt.boxplot(df[col])
+            # plt.title(col)
+            # plt.ylabel('count')
+            # plt.show()
             
             
         else:
@@ -111,8 +112,8 @@ def bivstats(df, label, roundto=4):
 
 
 
-def Webscraper(url = "https://www.worldometers.info/coronavirus/"):
-    page = requests.get(url)
+def Webscraper(graph = False, urlworld = "https://www.worldometers.info/coronavirus/", urlstate= "https://www.worldometers.info/coronavirus/country/us/"):
+    page = requests.get(urlworld)
     soup = bs(page.content, "html.parser")
     temp = list(soup.find_all(class_ = "mt_a"))
     countrylist = [bs.get_text() for bs in temp]
@@ -196,9 +197,119 @@ def Webscraper(url = "https://www.worldometers.info/coronavirus/"):
             df[x] = df[x].astype(int)
     
     unistats(df)
+    CountryList2 = list(df["Country"])
     for x in df.columns:
-        print(bivstats(df, x))
-    
+        if x != "Country":
+            print(bivstats(df, x))
+            fig = plt.figure()
+            ax = fig.add_axes([0,0,1,1])
+            TempListLoop = list(df[x])
+            ax.bar(CountryList2[0:10], TempListLoop[0:10])
+            plt.xlabel("Country")
+            plt.ylabel("Count")
+            if graph == True:
+                plt.show()
+        
+    print(df)
+
+    page2 = requests.get(urlstate)
+    soup2 = bs(page2.content, "html.parser")
+
+    temp = list(soup2.find_all("td"))
+    NewTempList = []
+
+    StateList = []
+    StateTotalCaseList = []
+    StateTotalDeathList = []
+    StateActiveCaseList = []
+    StateTestTotalList = []
+    TestVar = False
+    a = -1
+    iterator = 0
+    iterator2 = 0
+
+    for z in temp:
+        if z == "" or z == " ":
+            NewTempList.append("0")
+        else:
+            NewTempList.append(z.get_text())
+
+
+    for x in NewTempList:
+        if "uam" in x:
+            break
+        if x == "USA Total":
+            a = 10
+        elif a == 0:
+            TestVar = True
+        else:
+            a -= 1
+        if TestVar == True:
+            if iterator2 == 0:
+                StateList.append(x)
+                iterator2 += 1
+            elif iterator2 == 1:
+                StateTotalCaseList.append(x)
+                iterator2 += 1
+            elif iterator2 == 3:
+                StateTotalDeathList.append(x)
+                iterator2 += 1
+            elif iterator2 == 5:
+                StateActiveCaseList.append(x)
+                iterator2 += 1
+            elif iterator2 == 8:
+                StateTestTotalList.append(x)
+                iterator2 += 1
+            elif iterator2 == 10:
+                iterator2 = 0
+                iterator += 1
+            else:
+                iterator2 += 1
+    StateTempList = [StateList, StateTotalCaseList, StateTotalDeathList, StateActiveCaseList, StateTestTotalList]
+    for z in StateTempList:
+        iterator = 0
+        for a in z:
+            a = a.replace("\n", "")
+            if z != StateList:
+                a = a.replace(",", "")
+                a = a.replace(" ", "0")
+            z[iterator] = a
+            iterator += 1
+    iterator = 0
+    for a in StateTotalDeathList:
+        if a == "":
+            StateTotalDeathList[iterator] = "0"
+        iterator +=1
+    df2 = pd.DataFrame()
+    df2["State"] = StateList
+    df2["Total_Cases"] = StateTotalCaseList
+    df2["Total_Deaths"] = StateTotalDeathList
+    df2["Active_Cases"] = StateActiveCaseList 
+    df2["Tests_Taken"] = StateTestTotalList
+    df2.fillna("0")
+            
+
+    for x in df2.columns:
+        if x != "State":
+            #pd.to_numeric(df[x])
+            df2[x] = df2[x].astype(int)
+
+    unistats(df2)
+
+    StateList2 = list(df2["State"])
+    for x in df2.columns:
+        if x != "State":
+            print(bivstats(df2, x))
+            TempList2 = list(df2[x])
+            fig = plt.figure()
+            ax = fig.add_axes([0,0,1,1])
+            ax.bar(StateList2[0:10], TempList2[0:10])
+            plt.xlabel("State")
+            plt.ylabel("Count")
+            if graph == True:
+                plt.show()
+
+    print(df2)
 
 
 Webscraper()
